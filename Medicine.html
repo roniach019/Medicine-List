@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Medicine App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+    margin:0;
+    font-family:Segoe UI;
+    background:#f2f6fb;
+}
+
+.header{
+    background:linear-gradient(135deg,#1e88e5,#1565c0);
+    color:white;
+    padding:15px;
+    display:flex;
+    gap:10px;
+    align-items:center;
+}
+
+.logo{
+    width:42px;
+    height:42px;
+    background:white;
+    border-radius:10px;
+}
+
+.search{
+    padding:10px;
+    text-align:center;
+}
+
+.search input{
+    width:92%;
+    max-width:500px;
+    padding:12px;
+    border-radius:10px;
+    border:1px solid #ddd;
+}
+
+.container{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:12px;
+    padding:12px;
+}
+
+.card{
+    background:white;
+    border-radius:14px;
+    padding:14px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.08);
+    border-left:4px solid #1e88e5;
+}
+
+.en{font-weight:700;color:#1565c0;}
+.bn{font-size:13px;color:#555;}
+.info{font-size:13px;margin-top:6px;}
+
+.tag{
+    background:#e3f2fd;
+    color:#1565c0;
+    padding:2px 6px;
+    font-size:11px;
+    border-radius:5px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <div class="logo">💊</div>
+    <div>
+        <b>Medicine App</b><br>
+        <small>Smart Auto Sync</small>
+    </div>
+</div>
+
+<div class="search">
+    <input id="search" placeholder="Search medicine / company / disease...">
+</div>
+
+<div id="box" class="container"></div>
+
+<script>
+
+const API = "https://opensheet.elk.sh/1Xp26YeKFX_FGzdX82cmSZu8OtY5l6pLNz7TPQhJ4jDk/Sheet1";
+
+let data = [];
+let searchMode = false;   // 🔥 IMPORTANT
+let intervalId = null;
+let typingTimer = null;
+
+/* SAFE GET */
+function get(obj, keys){
+    for(let k in obj){
+        for(let w of keys){
+            if(k.toLowerCase().includes(w)){
+                return obj[k];
+            }
+        }
+    }
+    return "";
+}
+
+/* RENDER */
+function render(arr){
+
+    const box = document.getElementById("box");
+    box.innerHTML = "";
+
+    if(!Array.isArray(arr)){
+        box.innerHTML = "<p style='color:red;text-align:center'>Error loading data</p>";
+        return;
+    }
+
+    arr.forEach(m => {
+
+        let en = get(m,["english","medicine","name"]);
+        let bn = get(m,["bangla","bn"]);
+        let company = get(m,["company"]);
+        let price = get(m,["price"]);
+        let rules = get(m,["rules"]);
+        let disease = get(m,["disease"]);
+
+        box.innerHTML += `
+        <div class="card">
+            <div class="en">${en}</div>
+            <div class="bn">${bn}</div>
+
+            <div class="info"><span class="tag">Company</span> ${company}</div>
+            <div class="info"><span class="tag">Price</span> ${price}</div>
+            <div class="info"><span class="tag">Rules</span> ${rules}</div>
+            <div class="info"><span class="tag">Disease</span> ${disease}</div>
+        </div>`;
+    });
+}
+
+/* LOAD DATA */
+async function loadData(){
+    try{
+        const res = await fetch(API);
+        const json = await res.json();
+
+        data = json;
+
+        // 🔥 only update UI if NOT searching
+        if(!searchMode){
+            render(data);
+        }
+
+        console.log("Updated:", new Date().toLocaleTimeString());
+
+    }catch(err){
+        console.log("Error:", err);
+    }
+}
+
+/* AUTO REFRESH CONTROL */
+function startAuto(){
+
+    setTimeout(() => {
+
+        loadData();
+
+        intervalId = setInterval(() => {
+            if(!searchMode){
+                loadData();
+            }
+        }, 10000);
+
+    }, 3000);
+}
+
+/* SEARCH (SMART LOCK SYSTEM) */
+document.getElementById("search").addEventListener("input", function(){
+
+    let q = this.value.toLowerCase();
+
+    // 🔥 enter search mode
+    searchMode = q.length > 0;
+
+    // clear old timer
+    clearTimeout(typingTimer);
+
+    if(q.length === 0){
+        searchMode = false;
+        render(data);
+        return;
+    }
+
+    typingTimer = setTimeout(() => {
+
+        let filtered = data.filter(m =>
+            JSON.stringify(m).toLowerCase().includes(q)
+        );
+
+        render(filtered);
+
+    }, 200);
+
+});
+
+/* START */
+startAuto();
+
+</script>
+
+</body>
+</html>
